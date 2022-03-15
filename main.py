@@ -80,32 +80,87 @@ class PieceSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(topleft=pos)
 
     def validMove(self, piece, color, oldrow, oldcol, newrow, newcol):
+        
+        # --Black and white Pawns--
         if(piece == Piece.PAWN):
             if(color == "black"):
-                #print("here", newrow, oldrow, oldcol, newcol, boardSquares[newrow][newcol].piece)
+                
+                # first move where it can go 2 squares
                 if(boardSquares[oldrow][oldcol].firstMove and newrow == oldrow+2 and newcol == oldcol and boardSquares[oldrow+1][newcol].piece == Piece.EMPTY and boardSquares[newrow][newcol].piece == Piece.EMPTY):
                     boardSquares[oldrow][oldcol].firstMove = False
                     return True
+                # just moving forward    
                 if(newrow == oldrow+1 and oldcol == newcol and boardSquares[newrow][newcol].piece == Piece.EMPTY):
                     return True
+                # moving diagonal to capture a piece
                 if(newrow == oldrow+1 and (newcol == oldcol-1 or newcol == oldcol+1) and boardSquares[newrow][newcol].piece != Piece.EMPTY and boardSquares[newrow][newcol].pieceColor != "black"):
                     pieces.remove(boardSquares[newrow][newcol].sprite)
                     return True
                 
             if(color == "white"):
-                #print("here", newrow, oldrow, oldcol, newcol, boardSquares[newrow][newcol].piece)
+                # first move where it can go 2 squares
                 if(boardSquares[oldrow][oldcol].firstMove and newrow == oldrow-2 and newcol == oldcol and boardSquares[oldrow-1][newcol].piece == Piece.EMPTY and boardSquares[newrow][newcol].piece == Piece.EMPTY):
                     boardSquares[oldrow][oldcol].firstMove = False
                     return True
+                # just moving forward
                 if(newrow == oldrow-1 and oldcol == newcol and boardSquares[newrow][newcol].piece == Piece.EMPTY):
                     return True
+                # moving diagonal to capture a piece
                 if(newrow == oldrow-1 and (newcol == oldcol-1 or newcol == oldcol+1 )and boardSquares[newrow][newcol].piece != Piece.EMPTY and boardSquares[newrow][newcol].pieceColor != "white"):
                     pieces.remove(boardSquares[newrow][newcol].sprite)
                     return True
-        
-        if(piece == Piece.ROOK):
-            pass
 
+        # --Black and White Rook--
+        if(piece == Piece.ROOK):
+            #if(color == "black"):
+            if((newrow != oldrow and newcol == oldcol)):
+                # checks if up and down columns are empty
+                if(newrow >= oldrow):
+                    for i in range(oldrow+1, newrow):
+                        if (boardSquares[i][newcol].piece != Piece.EMPTY):
+                            return False
+                elif (newrow < oldrow):
+                    for i in range(newrow+1, oldrow):
+                        print(i, newcol)
+                        if (boardSquares[i][newcol].piece != Piece.EMPTY):
+                            return False
+
+                # if destination is not empty but has an opposite color piece, removes that piece
+                if(boardSquares[newrow][newcol].piece != Piece.EMPTY):
+                    if(boardSquares[newrow][newcol].pieceColor == color):
+                        return False
+
+                    pieces.remove(boardSquares[newrow][newcol].sprite)
+                    return True
+
+                # if destination is just empty, valid move
+                return True
+
+            if(newrow == oldrow and newcol != oldcol):
+                # checks if rows between move is all empty
+                if(newcol >= oldcol):
+                    for i in range(oldcol+1, newcol):
+                        if (boardSquares[newrow][i].piece != Piece.EMPTY):
+                            return False
+                elif (newcol < oldcol):
+                    for i in range(newcol+1, oldcol):
+                        if (boardSquares[newrow][i].piece != Piece.EMPTY):
+                            return False
+
+                # if rows are empty but destination has an opoosite color piece, removes the piece and moves
+                if(boardSquares[newrow][newcol].piece != Piece.EMPTY):
+                    if(boardSquares[newrow][newcol].pieceColor == color):
+                        return False
+
+                    pieces.remove(boardSquares[newrow][newcol].sprite)
+                    return True
+
+                # if destination is just empty, valid move
+                return True
+
+            #if(color == "white"):    
+            #    pass
+            
         if(piece == Piece.KNIGHT):
             pass
 
