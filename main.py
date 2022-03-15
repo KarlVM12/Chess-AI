@@ -79,6 +79,19 @@ class PieceSprite(pygame.sprite.Sprite):
         self.image = image
         self.rect = self.image.get_rect(topleft=pos)
 
+    # checks the destination square, if its the same color, false, else removes what is there or just moves
+    def checkAndRemove(self, newrow, newcol, color):
+        # if rows are empty but destination has an opoosite color piece, removes the piece and moves
+        if(boardSquares[newrow][newcol].piece != Piece.EMPTY):
+            if(boardSquares[newrow][newcol].pieceColor == color):
+                return False
+
+            pieces.remove(boardSquares[newrow][newcol].sprite)
+            return True
+
+        # if destination is just empty, valid move
+        return True
+
     def validMove(self, piece, color, oldrow, oldcol, newrow, newcol):
         
         # --Black and white Pawns--
@@ -112,7 +125,6 @@ class PieceSprite(pygame.sprite.Sprite):
 
         # --Black and White Rook--
         if(piece == Piece.ROOK):
-            #if(color == "black"):
             if((newrow != oldrow and newcol == oldcol)):
                 # checks if up and down columns are empty
                 if(newrow >= oldrow):
@@ -157,19 +169,36 @@ class PieceSprite(pygame.sprite.Sprite):
 
                 # if destination is just empty, valid move
                 return True
-
-            #if(color == "white"):    
-            #    pass
             
+        # --Black and White Knight--
         if(piece == Piece.KNIGHT):
-            pass
-
+            if(newrow == oldrow-2 and newcol == oldcol+1):
+                return self.checkAndRemove(newrow, newcol, color)
+            if(newrow == oldrow-1 and newcol == oldcol+2):
+                return self.checkAndRemove(newrow, newcol, color)
+            if(newrow == oldrow+1 and newcol == oldcol+2):
+                return self.checkAndRemove(newrow, newcol, color)
+            if(newrow == oldrow+2 and newcol == oldcol+1):
+                return self.checkAndRemove(newrow, newcol, color)
+            if(newrow == oldrow+2 and newcol == oldcol-1):
+                return self.checkAndRemove(newrow, newcol, color)
+            if(newrow == oldrow+1 and newcol == oldcol-2):
+                return self.checkAndRemove(newrow, newcol, color)
+            if(newrow == oldrow-1 and newcol == oldcol-2):
+                return self.checkAndRemove(newrow, newcol, color)
+            if(newrow == oldrow-2 and newcol == oldcol-1):
+                return self.checkAndRemove(newrow, newcol, color)
+        
+        # --Black and White Bishop--
         if(piece == Piece.BISHOP):
+            
             pass
-
+        
+        # --Black and White Queen--
         if(piece == Piece.QUEEN):
             pass
 
+        # --Black and White King--
         if(piece == Piece.KING):
             pass
 
