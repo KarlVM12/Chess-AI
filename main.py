@@ -191,8 +191,41 @@ class PieceSprite(pygame.sprite.Sprite):
         
         # --Black and White Bishop--
         if(piece == Piece.BISHOP):
-            
-            pass
+            if((newrow != oldrow and newcol != oldcol)):
+                #[-, +]
+                if(newrow < oldrow and newcol > oldcol): 
+                    for i in range(1, oldrow-newrow):
+                        if(boardSquares[oldrow-i][oldcol+i].piece != Piece.EMPTY):
+                            return False
+                
+                    return self.checkAndRemove(newrow, newcol, color)
+                
+                #[+, +]
+                elif (newrow > oldrow and newcol > oldcol): 
+                    for i in range(1, newrow-oldrow):
+                        if(boardSquares[oldrow+i][oldcol+i].piece != Piece.EMPTY):
+                            return False
+                
+                    return self.checkAndRemove(newrow, newcol, color)
+                
+                #[+, -]
+                elif (newrow > oldrow and newcol < oldcol): 
+                    for i in range(1, newrow-oldrow):
+                        if(boardSquares[oldrow+i][oldcol-i].piece != Piece.EMPTY):
+                            return False
+                
+                    return self.checkAndRemove(newrow, newcol, color)
+                
+                #[-, -]
+                elif (newrow < oldrow and newcol < oldcol):
+                    for i in range(1, oldrow-newrow):
+                        if(boardSquares[oldrow-i][oldcol-i].piece != Piece.EMPTY):
+                            return False
+                
+                    return self.checkAndRemove(newrow, newcol, color)
+
+
+            pass 
         
         # --Black and White Queen--
         if(piece == Piece.QUEEN):
@@ -200,8 +233,14 @@ class PieceSprite(pygame.sprite.Sprite):
 
         # --Black and White King--
         if(piece == Piece.KING):
-            pass
-
+            if(newrow == oldrow and (newcol == oldcol-1 or newcol == oldcol+1)):
+                return self.checkAndRemove(newrow, newcol, color)
+            elif((newrow == oldrow-1 or newrow == oldrow+1) and newcol == oldcol):
+                return self.checkAndRemove(newrow, newcol, color)
+            elif((newrow == oldrow-1 or newrow == oldrow+1) and (newcol == oldcol-1 or newcol == oldcol+1)):
+                return self.checkAndRemove(newrow, newcol, color)
+            elif((newrow == oldrow-1 and newcol == oldcol-1) or (newrow == oldrow+1 and newcol == oldcol+1)):
+                return self.checkAndRemove(newrow, newcol, color)
 
         return False
 
@@ -334,10 +373,13 @@ while running:
             oldcol = selectedPos[1]
             newrow = int((y - BOARD_START_X) / SQUARE_SIZE)
             newcol = int((x - BOARD_START_X) / SQUARE_SIZE)
-            
-            print(oldrow, oldcol, newrow, newcol, boardSquares[oldrow][oldcol].piece)
-            boardSquares[oldrow][oldcol].sprite.move(boardSquares[oldrow][oldcol].piece, boardSquares[oldrow][oldcol].pieceColor, oldrow, oldcol, newrow, newcol)
-            
+
+            if(BOARD_START_X <= x <= BOARD_END_X and BOARD_START_X <= y <=BOARD_END_X):
+                print(oldrow, oldcol, newrow, newcol, boardSquares[oldrow][oldcol].piece)
+                boardSquares[oldrow][oldcol].sprite.move(boardSquares[oldrow][oldcol].piece, boardSquares[oldrow][oldcol].pieceColor, oldrow, oldcol, newrow, newcol)
+            else:
+                print("out of bounds")
+
             pieceSelected = False
             selectedPos = (-1,-1)
 
