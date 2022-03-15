@@ -1,4 +1,5 @@
 import os.path
+import copy
 import pygame
 import enum
 pygame.init()
@@ -18,6 +19,7 @@ BACKGROUND_COLOR = (251,245,222)
 
 screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
 pygame.display.set_caption('Chess AI')
+boardSquares = [[0 for i in range(COLS)] for j in range(ROWS)]
 
 #Sprites
 PAWN_W_SPRITE = pygame.image.load(os.path.join("Sprites", "pawn_w.png")).convert_alpha()
@@ -34,7 +36,6 @@ KING_W_SPRITE = pygame.image.load(os.path.join("Sprites", "king_w.png")).convert
 KING_B_SPRITE = pygame.image.load(os.path.join("Sprites", "king_b.png")).convert_alpha()
 
 
-boardSquares = [[0 for i in range(COLS)] for j in range(ROWS)]
 
 class Piece(enum.Enum):
     EMPTY = "EMPTY"
@@ -47,11 +48,30 @@ class Piece(enum.Enum):
 
 
 class Square:
-    def __init__(self, x = 0, y = 0, piece = Piece.EMPTY, sprite = None):
+    def __init__(self, x = 0, y = 0, piece = Piece.EMPTY, pieceColor = None, sprite = None):
         self.x = x
         self.y = y
+        self.row = int((y - BOARD_START_X) / SQUARE_SIZE)
+        self.col = int((x - BOARD_START_X) / SQUARE_SIZE) 
         self.piece = piece
+        self.firstMove = False
+        if(self.piece == Piece.PAWN):
+            self.firstMove = True
+
+        self.pieceColor = pieceColor
         self.sprite = sprite
+
+    def copy(self, square):
+        self.x = square.x
+        self.y = square.y
+        self.row = square.row
+        self.col = square.col 
+        self.piece = square.piece
+        self.pieceColor = square.pieceColor
+        self.sprite = PieceSprite((x,y), square.sprite.image)
+
+    def __str__(self) -> str:
+        return "( " + str(self.y) + ", " + str(self.x) + ") [ " + str(self.row) + ", " + str(self.col) + "] " + str(self.piece) + " " + str(self.sprite);
 
 class PieceSprite(pygame.sprite.Sprite):
     def __init__(self, pos, image):
@@ -59,9 +79,70 @@ class PieceSprite(pygame.sprite.Sprite):
         self.image = image
         self.rect = self.image.get_rect(topleft=pos)
 
-    def move(self, x, y):
-        self.rect.x += x
-        self.rect.y += y
+    def validMove(self, piece, color, oldrow, oldcol, newrow, newcol):
+        if(piece == Piece.PAWN):
+            if(color == "black"):
+                #print("here", newrow, oldrow, oldcol, newcol, boardSquares[newrow][newcol].piece)
+                if(boardSquares[oldrow][oldcol].firstMove and newrow == oldrow+2 and newcol == oldcol and boardSquares[oldrow+1][newcol].piece == Piece.EMPTY and boardSquares[newrow][newcol].piece == Piece.EMPTY):
+                    boardSquares[oldrow][oldcol].firstMove = False
+                    return True
+                if(newrow == oldrow+1 and oldcol == newcol and boardSquares[newrow][newcol].piece == Piece.EMPTY):
+                    return True
+                if(newrow == oldrow+1 and (newcol == oldcol-1 or newcol == oldcol+1) and boardSquares[newrow][newcol].piece != Piece.EMPTY and boardSquares[newrow][newcol].pieceColor != "black"):
+                    pieces.remove(boardSquares[newrow][newcol].sprite)
+                    return True
+                
+            if(color == "white"):
+                #print("here", newrow, oldrow, oldcol, newcol, boardSquares[newrow][newcol].piece)
+                if(boardSquares[oldrow][oldcol].firstMove and newrow == oldrow-2 and newcol == oldcol and boardSquares[oldrow-1][newcol].piece == Piece.EMPTY and boardSquares[newrow][newcol].piece == Piece.EMPTY):
+                    boardSquares[oldrow][oldcol].firstMove = False
+                    return True
+                if(newrow == oldrow-1 and oldcol == newcol and boardSquares[newrow][newcol].piece == Piece.EMPTY):
+                    return True
+                if(newrow == oldrow-1 and (newcol == oldcol-1 or newcol == oldcol+1 )and boardSquares[newrow][newcol].piece != Piece.EMPTY and boardSquares[newrow][newcol].pieceColor != "white"):
+                    pieces.remove(boardSquares[newrow][newcol].sprite)
+                    return True
+        
+        if(piece == Piece.ROOK):
+            pass
+
+        if(piece == Piece.KNIGHT):
+            pass
+
+        if(piece == Piece.BISHOP):
+            pass
+
+        if(piece == Piece.QUEEN):
+            pass
+
+        if(piece == Piece.KING):
+            pass
+
+
+        return False
+
+    def move(self, piece, color, oldrow, oldcol, newrow, newcol):
+        if (self.validMove(piece, color, oldrow, oldcol, newrow, newcol)):
+            
+            #boardSquares[newrow][newcol].copy(boardSquares[oldrow][oldcol])
+            
+            self.rect.x = (newcol * SQUARE_SIZE) + BOARD_START_X +1
+            self.rect.y = (newrow * SQUARE_SIZE) + BOARD_START_X +2
+            boardSquares[newrow][newcol].x = self.rect.x
+            boardSquares[newrow][newcol].y = self.rect.y
+            
+            boardSquares[newrow][newcol] = Square(self.rect.x - 1, self.rect.y - 2, boardSquares[oldrow][oldcol].piece, boardSquares[oldrow][oldcol].pieceColor, boardSquares[oldrow][oldcol].sprite)
+            boardSquares[oldrow][oldcol] = Square((oldcol * SQUARE_SIZE) + BOARD_START_X, (oldrow * SQUARE_SIZE) + BOARD_START_X, Piece.EMPTY, None, None)
+            
+            if(piece == Piece.PAWN):
+                boardSquares[newrow][newcol].firstMove = False
+
+            print(boardSquares[newrow][newcol])
+            #self.rect = self.image.get_rect(topleft=(newrow * SQUARE_SIZE, newcol * SQUARE_SIZE))
+
+    def __str__(self) -> str:
+        return super().__str__() + str(self.rect)
+    
 
 def initializeBoard(pieces):
     for y in range(BOARD_START_X, BOARD_END_X, SQUARE_SIZE):
@@ -74,32 +155,32 @@ def initializeBoard(pieces):
             # additions to sprite coords to center sprite
             if(row == 0):
                 if(col == 0 or col == 7):
-                    boardSquares[row][col] = Square(x, y, Piece.ROOK, PieceSprite((x+1,y+2), ROOK_B_SPRITE))
+                    boardSquares[row][col] = Square(x, y, Piece.ROOK, "black", PieceSprite((x+1,y+2), ROOK_B_SPRITE))
                 elif(col == 1 or col == 6):
-                    boardSquares[row][col] = Square(x, y, Piece.KNIGHT, PieceSprite((x+1,y+2), KNIGHT_B_SPRITE))
+                    boardSquares[row][col] = Square(x, y, Piece.KNIGHT, "black", PieceSprite((x+1,y+2), KNIGHT_B_SPRITE))
                 elif(col == 2 or col == 5):
-                    boardSquares[row][col] = Square(x, y, Piece.BISHOP, PieceSprite((x+1,y+2), BISHOP_B_SPRITE))
+                    boardSquares[row][col] = Square(x, y, Piece.BISHOP, "black", PieceSprite((x+1,y+2), BISHOP_B_SPRITE))
                 elif(col == 3):
-                    boardSquares[row][col] = Square(x, y, Piece.QUEEN, PieceSprite((x+1,y+2), QUEEN_B_SPRITE))
+                    boardSquares[row][col] = Square(x, y, Piece.QUEEN, "black", PieceSprite((x+1,y+2), QUEEN_B_SPRITE))
                 elif(col == 4):
-                    boardSquares[row][col] = Square(x, y, Piece.KING, PieceSprite((x+1,y+2), KING_B_SPRITE))
+                    boardSquares[row][col] = Square(x, y, Piece.KING, "black", PieceSprite((x+1,y+2), KING_B_SPRITE))
             elif(row == 1):
-                boardSquares[row][col] = Square(x, y, Piece.PAWN, PieceSprite((x+1,y+2), PAWN_B_SPRITE))
+                boardSquares[row][col] = Square(x, y, Piece.PAWN, "black", PieceSprite((x+1,y+2), PAWN_B_SPRITE))
             elif(row == 6):
-                boardSquares[row][col] = Square(x, y, Piece.PAWN, PieceSprite((x+1,y+2), PAWN_W_SPRITE))
+                boardSquares[row][col] = Square(x, y, Piece.PAWN,  "white", PieceSprite((x+1,y+2), PAWN_W_SPRITE))
             elif(row == 7):
                 if(col == 0 or col == 7):
-                    boardSquares[row][col] = Square(x, y, Piece.ROOK, PieceSprite((x+1,y+2), ROOK_W_SPRITE))
+                    boardSquares[row][col] = Square(x, y, Piece.ROOK, "white", PieceSprite((x+1,y+2), ROOK_W_SPRITE))
                 elif(col == 1 or col == 6):
-                    boardSquares[row][col] = Square(x, y, Piece.KNIGHT, PieceSprite((x+1,y+2), KNIGHT_W_SPRITE))
+                    boardSquares[row][col] = Square(x, y, Piece.KNIGHT, "white", PieceSprite((x+1,y+2), KNIGHT_W_SPRITE))
                 elif(col == 2 or col == 5):
-                    boardSquares[row][col] = Square(x, y, Piece.BISHOP, PieceSprite((x+1,y+2), BISHOP_W_SPRITE))
+                    boardSquares[row][col] = Square(x, y, Piece.BISHOP, "white", PieceSprite((x+1,y+2), BISHOP_W_SPRITE))
                 elif(col == 3):
-                    boardSquares[row][col] = Square(x, y, Piece.QUEEN, PieceSprite((x+1,y+2), QUEEN_W_SPRITE))
+                    boardSquares[row][col] = Square(x, y, Piece.QUEEN, "white", PieceSprite((x+1,y+2), QUEEN_W_SPRITE))
                 elif(col == 4):
-                    boardSquares[row][col] = Square(x, y, Piece.KING, PieceSprite((x+1,y+2), KING_W_SPRITE))
+                    boardSquares[row][col] = Square(x, y, Piece.KING, "white", PieceSprite((x+1,y+2), KING_W_SPRITE))
             else:
-                boardSquares[row][col] = Square(x, y, Piece.EMPTY, None)
+                boardSquares[row][col] = Square(x, y, Piece.EMPTY)
 
             if(boardSquares[row][col].sprite != None):
                 pieces.add(boardSquares[row][col].sprite)
@@ -139,6 +220,8 @@ pieces = pygame.sprite.Group()
 
 # Initializes board with pieces
 initializeBoard(pieces)
+pieceSelected = False
+selectedPos = (-1,-1)
 
 running = True
 while running:
@@ -146,10 +229,33 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        """ elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_DOWN:
-                boardSquares[0][0].sprite.move(0, SQUARE_SIZE) """
+            
+        elif (event.type == pygame.MOUSEBUTTONUP and (not pieceSelected)):
+            pos = pygame.mouse.get_pos()
 
+            if(BOARD_START_X <= pos[0] <= BOARD_END_X and BOARD_START_X <= pos[1] <= BOARD_END_X ):
+                selectedPos = (int((pos[1] - BOARD_START_X) / SQUARE_SIZE), int((pos[0] - BOARD_START_X) / SQUARE_SIZE))
+                print(boardSquares[selectedPos[0]][selectedPos[1]].piece)
+
+                if(boardSquares[selectedPos[0]][selectedPos[1]].piece != Piece.EMPTY):
+                    pieceSelected = True
+                else:
+                    pieceSelected = False
+                    selectedPos = (-1,-1) 
+
+        elif (event.type == pygame.MOUSEBUTTONUP and pieceSelected):
+            pos = pygame.mouse.get_pos()
+            x, y = pos
+            oldrow = selectedPos[0]
+            oldcol = selectedPos[1]
+            newrow = int((y - BOARD_START_X) / SQUARE_SIZE)
+            newcol = int((x - BOARD_START_X) / SQUARE_SIZE)
+            
+            print(oldrow, oldcol, newrow, newcol, boardSquares[oldrow][oldcol].piece)
+            boardSquares[oldrow][oldcol].sprite.move(boardSquares[oldrow][oldcol].piece, boardSquares[oldrow][oldcol].pieceColor, oldrow, oldcol, newrow, newcol)
+            
+            pieceSelected = False
+            selectedPos = (-1,-1)
 
     # Fill the background with white
     screen.fill(BACKGROUND_COLOR)
