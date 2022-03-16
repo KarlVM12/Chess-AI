@@ -133,7 +133,6 @@ class PieceSprite(pygame.sprite.Sprite):
                             return False
                 elif (newrow < oldrow):
                     for i in range(newrow+1, oldrow):
-                        print(i, newcol)
                         if (boardSquares[i][newcol].piece != Piece.EMPTY):
                             return False
 
@@ -253,8 +252,13 @@ class PieceSprite(pygame.sprite.Sprite):
             if(piece == Piece.PAWN):
                 boardSquares[newrow][newcol].firstMove = False
 
-            print(boardSquares[newrow][newcol])
+            print("Valid Move, New Square:", boardSquares[newrow][newcol])
+            
+            return True
             #self.rect = self.image.get_rect(topleft=(newrow * SQUARE_SIZE, newcol * SQUARE_SIZE))
+        else:
+            print("Invalid Move")
+            return False
 
     def __str__(self) -> str:
         return super().__str__() + str(self.rect)
@@ -342,17 +346,21 @@ def findKing(color):
 def inBoardBounds(i,j):
     return (0 <= i < ROWS) and (0 <= j < COLS)
 
-# returns 0 for no check, 1 for black in check, 2 for white in check
-def inCheck():
-    rowK, colK = findKing("black")
+def inCheckColor(color):
+    rowK, colK = findKing(color)
     for i in range(ROWS):
         for j in range(COLS):
-            if (boardSquares[i][j].pieceColor == "white"):
+            if (boardSquares[i][j].pieceColor != color):
                 
                 # if the king is diagonally from a pawn, king in check
                 if(boardSquares[i][j].piece == Piece.PAWN and inBoardBounds(i,j)):
-                    if((i-1 == rowK and j-1 == colK) or (i-1 == rowK and j+1 == colK)):
-                        return 1
+                    if (color == "white"):
+                        if((i-1 == rowK and j-1 == colK) or (i-1 == rowK and j+1 == colK)):
+                            return 1
+                        
+                    if (color == "black"):
+                        if((i+1 == rowK and j+1 == colK) or (i+1 == rowK and j-1 == colK)):
+                            return 2
 
                 # Queen shares up and down functionality with Rook
                 if(boardSquares[i][j].piece == Piece.ROOK or boardSquares[i][j].piece == Piece.QUEEN):
@@ -362,11 +370,11 @@ def inCheck():
                         if (boardSquares[k][j].piece != Piece.EMPTY and boardSquares[k][j].piece != Piece.KING):
                             king = False
                             break
-                        if (boardSquares[k][j].piece == Piece.KING and boardSquares[k][j].pieceColor == "black"):
+                        if (boardSquares[k][j].piece == Piece.KING and boardSquares[k][j].pieceColor == color):
                             king = True
 
                     if(king):
-                        return 1
+                        return (1 if color == "black" else 2)
 
                     #[+, x], down
                     king = False
@@ -374,11 +382,11 @@ def inCheck():
                         if (boardSquares[k][j].piece != Piece.EMPTY and boardSquares[k][j].piece != Piece.KING):
                             king = False
                             break
-                        if (boardSquares[k][j].piece == Piece.KING and boardSquares[k][j].pieceColor == "black"):
+                        if (boardSquares[k][j].piece == Piece.KING and boardSquares[k][j].pieceColor == color):
                             king = True
 
                     if(king):
-                        return 1
+                        return (1 if color == "black" else 2)
 
                     #[x, -], left
                     king = False
@@ -386,11 +394,11 @@ def inCheck():
                         if (boardSquares[i][k].piece != Piece.EMPTY and boardSquares[i][k].piece != Piece.KING):
                             king = False
                             break
-                        if (boardSquares[i][k].piece == Piece.KING and boardSquares[i][k].pieceColor == "black"):
+                        if (boardSquares[i][k].piece == Piece.KING and boardSquares[i][k].pieceColor == color):
                             king = True
 
                     if(king):
-                        return 1
+                        return (1 if color == "black" else 2)
 
                     #[x, +], right   
                     king = False
@@ -398,11 +406,11 @@ def inCheck():
                         if (boardSquares[i][k].piece != Piece.EMPTY and boardSquares[i][k].piece != Piece.KING):
                             king = False
                             break
-                        if (boardSquares[i][k].piece == Piece.KING and boardSquares[i][k].pieceColor == "black"):
+                        if (boardSquares[i][k].piece == Piece.KING and boardSquares[i][k].pieceColor == color):
                             king = True
 
                     if(king):
-                        return 1
+                        return (1 if color == "black" else 2)
 
                 # Bishop and Queen share diagonal functionality
                 if(boardSquares[i][j].piece == Piece.BISHOP or boardSquares[i][j].piece == Piece.QUEEN):
@@ -413,13 +421,13 @@ def inCheck():
                             #print("blocking king", rowK, colK, "[",i, j,"] ", k, i-k, j+k)
                             king = False
                             break
-                        if (inBoardBounds(i-k, j+k) and boardSquares[i-k][j+k].piece == Piece.KING and boardSquares[i-k][j+k].pieceColor == "black"):
+                        if (inBoardBounds(i-k, j+k) and boardSquares[i-k][j+k].piece == Piece.KING and boardSquares[i-k][j+k].pieceColor == color):
                             #print("king location", i-k, j+k)
                             king = True
 
                     #print(king)
                     if(king):
-                        return 1
+                        return (1 if color == "black" else 2)
 
                     #[+, +], down right
                     king = False
@@ -427,12 +435,12 @@ def inCheck():
                         if (inBoardBounds(i+k, j+k) and boardSquares[i+k][j+k].piece != Piece.EMPTY and boardSquares[i+k][j+k].piece != Piece.KING):
                             king = False
                             break
-                        if (inBoardBounds(i+k, j+k) and boardSquares[i+k][j+k].piece == Piece.KING and boardSquares[i+k][j+k].pieceColor == "black"):
+                        if (inBoardBounds(i+k, j+k) and boardSquares[i+k][j+k].piece == Piece.KING and boardSquares[i+k][j+k].pieceColor == color):
                             king = True
 
                     #print(king)
                     if(king):
-                        return 1
+                        return (1 if color == "black" else 2)
 
                     #[+, -], down left
                     king = False
@@ -440,11 +448,11 @@ def inCheck():
                         if (inBoardBounds(i+k, j-k) and boardSquares[i+k][j-k].piece != Piece.EMPTY and boardSquares[i+k][j-k].piece != Piece.KING):
                             king = False
                             break
-                        if (inBoardBounds(i+k, j-k) and boardSquares[i+k][j-k].piece == Piece.KING and boardSquares[i+k][j-k].pieceColor == "black"):
+                        if (inBoardBounds(i+k, j-k) and boardSquares[i+k][j-k].piece == Piece.KING and boardSquares[i+k][j-k].pieceColor == color):
                             king = True
 
                     if(king):
-                        return 1
+                        return (1 if color == "black" else 2)
 
                     #[-, -], up left   
                     king = False
@@ -452,44 +460,53 @@ def inCheck():
                         if (inBoardBounds(i-k, j-k) and boardSquares[i-k][j-k].piece != Piece.EMPTY and boardSquares[i-k][j-k].piece != Piece.KING):
                             king = False
                             break
-                        if (inBoardBounds(i-k, j-k) and boardSquares[i-k][j-k].piece == Piece.KING and boardSquares[i-k][j-k].pieceColor == "black"):
+                        if (inBoardBounds(i-k, j-k) and boardSquares[i-k][j-k].piece == Piece.KING and boardSquares[i-k][j-k].pieceColor == color):
                             king = True
 
                     if(king):
-                        return 1
+                        return (1 if color == "black" else 2)
                 
                 # if another knight move puts the King in check, king in check
                 if(boardSquares[i][j].piece == Piece.KNIGHT):
                     if(rowK == i-2 and colK == j+1):
-                        return 1
+                        return (1 if color == "black" else 2)
                     if(rowK == i-1 and colK == j+2):
-                        return 1
+                        return (1 if color == "black" else 2)
                     if(rowK == i+1 and colK == j+2):
-                        return 1
+                        return (1 if color == "black" else 2)
                     if(rowK == i+2 and colK == j+1):
-                        return 1
+                        return (1 if color == "black" else 2)
                     if(rowK == i+2 and colK == j-1):
-                        return 1
+                        return (1 if color == "black" else 2)
                     if(rowK == i+1 and colK == j-2):
-                        return 1
+                        return (1 if color == "black" else 2)
                     if(rowK == i-1 and colK == j-2):
-                        return 1
+                        return (1 if color == "black" else 2)
                     if(rowK == i-2 and colK == j-1):
-                        return 1
+                        return (1 if color == "black" else 2)
 
                 if(boardSquares[i][j].piece == Piece.KING):
                     if(rowK == i and (colK == j-1 or colK == j+1)):
-                        return 1
+                        return (1 if color == "black" else 2)
                     elif((rowK == i-1 or rowK == i+1) and colK == j):
-                        return 1
+                        return (1 if color == "black" else 2)
                     elif((rowK == i-1 or rowK == i+1) and (colK == j-1 or colK == j+1)):
-                        return 1
+                        return (1 if color == "black" else 2)
                     elif((rowK == i-1 and colK == j-1) or (rowK == i+1 and colK == j+1)):
-                        return 1
+                        return (1 if color == "black" else 2)
 
-    rowK, colK = findKing("white")
+    return 0
+
+
+# returns 0 for no check, 1 for black in check, 2 for white in check
+def inCheck():
     
+    if(inCheckColor("black") == 1):
+        return 1
     
+    if(inCheckColor("white") == 2):
+        return 2
+
     return 0
 
 # Groups sprite together to be displayed
@@ -500,19 +517,43 @@ initializeBoard(pieces)
 pieceSelected = False
 selectedPos = (-1,-1)
 
+whiteCheck = False
+blackCheck = False
+
+# resets all variables and sprites, new game
+def newGame():
+    global pieces, pieceSelected, selectedPos, whiteCheck, blackCheck
+    
+    for p in pieces:
+        p.kill()
+
+    initializeBoard(pieces)  
+
+    pieceSelected = False
+    selectedPos = (-1,-1)
+
+    whiteCheck = False
+    blackCheck = False  
+    print("\n======New Game=====\n")
+
+
 running = True
 while running:
     # "X"-ed window out
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-            
+
+        elif (event.type == pygame.KEYDOWN):
+            if (event.key == pygame.K_n):
+                newGame()
+
         elif (event.type == pygame.MOUSEBUTTONUP and (not pieceSelected)):
             pos = pygame.mouse.get_pos()
 
             if(BOARD_START_X <= pos[0] <= BOARD_END_X and BOARD_START_X <= pos[1] <= BOARD_END_X ):
                 selectedPos = (int((pos[1] - BOARD_START_X) / SQUARE_SIZE), int((pos[0] - BOARD_START_X) / SQUARE_SIZE))
-                print(boardSquares[selectedPos[0]][selectedPos[1]].piece)
+                print("\nSelected Piece:", boardSquares[selectedPos[0]][selectedPos[1]].piece)
 
                 if(boardSquares[selectedPos[0]][selectedPos[1]].piece != Piece.EMPTY):
                     pieceSelected = True
@@ -528,17 +569,36 @@ while running:
             newrow = int((y - BOARD_START_X) / SQUARE_SIZE)
             newcol = int((x - BOARD_START_X) / SQUARE_SIZE)
 
+            # checks if the king is in check before move
+            if(inCheck() == 1):
+                print("black king in check")
+                blackCheck = True
+            elif (inCheck() == 2):
+                print("white king in check")
+                whiteCheck = True
+            else:
+                print("kings are safe before")
+                blackCheck = False
+                whiteCheck = False
+
             if(BOARD_START_X <= x <= BOARD_END_X and BOARD_START_X <= y <=BOARD_END_X):
-                print(oldrow, oldcol, newrow, newcol, boardSquares[oldrow][oldcol].piece)
+                print("[",oldrow, ", ", oldcol, "]->[", newrow, ", ", newcol, "]", boardSquares[oldrow][oldcol].piece)
                 boardSquares[oldrow][oldcol].sprite.move(boardSquares[oldrow][oldcol].piece, boardSquares[oldrow][oldcol].pieceColor, oldrow, oldcol, newrow, newcol)
             else:
                 print("out of bounds")
 
-            # checks if the king is in check after movements
+            # checks if the king is in check after move
             if(inCheck() == 1):
                 print("black king in check")
+                blackCheck = True
             elif (inCheck() == 2):
                 print("white king in check")
+                whiteCheck = True
+            else:
+                print("kings are safe after")
+                blackCheck = False
+                whiteCheck = False
+
 
             #reset selected piece
             pieceSelected = False
