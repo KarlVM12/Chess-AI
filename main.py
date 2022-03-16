@@ -340,7 +340,7 @@ def findKing(color):
 
 # makes sure iteration is within bounds of board
 def inBoardBounds(i,j):
-    return (0 <= i < 8) and (0 <= j < 8)
+    return (0 <= i < ROWS) and (0 <= j < COLS)
 
 # returns 0 for no check, 1 for black in check, 2 for white in check
 def inCheck():
@@ -458,17 +458,39 @@ def inCheck():
                     if(king):
                         return 1
                 
+                # if another knight move puts the King in check, king in check
                 if(boardSquares[i][j].piece == Piece.KNIGHT):
-                    pass
+                    if(rowK == i-2 and colK == j+1):
+                        return 1
+                    if(rowK == i-1 and colK == j+2):
+                        return 1
+                    if(rowK == i+1 and colK == j+2):
+                        return 1
+                    if(rowK == i+2 and colK == j+1):
+                        return 1
+                    if(rowK == i+2 and colK == j-1):
+                        return 1
+                    if(rowK == i+1 and colK == j-2):
+                        return 1
+                    if(rowK == i-1 and colK == j-2):
+                        return 1
+                    if(rowK == i-2 and colK == j-1):
+                        return 1
+
                 if(boardSquares[i][j].piece == Piece.KING):
-                    pass
+                    if(rowK == i and (colK == j-1 or colK == j+1)):
+                        return 1
+                    elif((rowK == i-1 or rowK == i+1) and colK == j):
+                        return 1
+                    elif((rowK == i-1 or rowK == i+1) and (colK == j-1 or colK == j+1)):
+                        return 1
+                    elif((rowK == i-1 and colK == j-1) or (rowK == i+1 and colK == j+1)):
+                        return 1
 
-
-
-    row, col = findKing("white")
+    rowK, colK = findKing("white")
     
     
-    return False
+    return 0
 
 # Groups sprite together to be displayed
 pieces = pygame.sprite.Group()
