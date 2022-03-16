@@ -229,7 +229,66 @@ class PieceSprite(pygame.sprite.Sprite):
         
         # --Black and White Queen--
         if(piece == Piece.QUEEN):
-            pass
+            # [-/+, no change], rook functionality
+            if(newrow != oldrow and newcol == oldcol):
+                if(newrow >= oldrow):
+                    for i in range(oldrow+1, newrow):
+                        if (boardSquares[i][newcol].piece != Piece.EMPTY):
+                            return False
+                elif (newrow < oldrow):
+                    for i in range(newrow+1, oldrow):
+                        print(i, newcol)
+                        if (boardSquares[i][newcol].piece != Piece.EMPTY):
+                            return False
+                
+                return self.checkAndRemove(newrow, newcol, color)
+
+            # [no change, +/-], rook functionality
+            if(newrow == oldrow and newcol != oldcol):
+                if(newcol >= oldcol):
+                    for i in range(oldcol+1, newcol):
+                        if (boardSquares[newrow][i].piece != Piece.EMPTY):
+                            return False
+                elif (newcol < oldcol):
+                    for i in range(newcol+1, oldcol):
+                        if (boardSquares[newrow][i].piece != Piece.EMPTY):
+                            return False
+                
+                return self.checkAndRemove(newrow, newcol, color)
+
+            # [-,+], [+,+], [+,-],[-,-], bishop functionality
+            if((newrow != oldrow and newcol != oldcol)):
+                #[-, +]
+                if(newrow < oldrow and newcol > oldcol): 
+                    for i in range(1, oldrow-newrow):
+                        if(boardSquares[oldrow-i][oldcol+i].piece != Piece.EMPTY):
+                            return False
+                
+                    return self.checkAndRemove(newrow, newcol, color)
+                
+                #[+, +]
+                elif (newrow > oldrow and newcol > oldcol): 
+                    for i in range(1, newrow-oldrow):
+                        if(boardSquares[oldrow+i][oldcol+i].piece != Piece.EMPTY):
+                            return False
+                
+                    return self.checkAndRemove(newrow, newcol, color)
+                
+                #[+, -]
+                elif (newrow > oldrow and newcol < oldcol): 
+                    for i in range(1, newrow-oldrow):
+                        if(boardSquares[oldrow+i][oldcol-i].piece != Piece.EMPTY):
+                            return False
+                
+                    return self.checkAndRemove(newrow, newcol, color)
+                
+                #[-, -]
+                elif (newrow < oldrow and newcol < oldcol):
+                    for i in range(1, oldrow-newrow):
+                        if(boardSquares[oldrow-i][oldcol-i].piece != Piece.EMPTY):
+                            return False
+                
+                    return self.checkAndRemove(newrow, newcol, color)
 
         # --Black and White King--
         if(piece == Piece.KING):
