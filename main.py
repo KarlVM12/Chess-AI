@@ -1,5 +1,5 @@
 import os.path
-import copy
+import math
 import pygame
 import enum
 pygame.init()
@@ -71,7 +71,7 @@ class Square:
         self.sprite = PieceSprite((x,y), square.sprite.image)
 
     def __str__(self) -> str:
-        return "( " + str(self.y) + ", " + str(self.x) + ") [ " + str(self.row) + ", " + str(self.col) + "] " + str(self.piece) + " " + str(self.sprite);
+        return "( " + str(self.y) + ", " + str(self.x) + ") [ " + str(self.row) + ", " + str(self.col) + "] " + str(self.piece) + " " + str(self.sprite)
 
 class PieceSprite(pygame.sprite.Sprite):
     def __init__(self, pos, image):
@@ -123,8 +123,8 @@ class PieceSprite(pygame.sprite.Sprite):
                     pieces.remove(boardSquares[newrow][newcol].sprite)
                     return True
 
-        # --Black and White Rook--
-        if(piece == Piece.ROOK):
+        # --Black and White Rook and Queen--
+        if(piece == Piece.ROOK or piece == Piece.QUEEN):
             if((newrow != oldrow and newcol == oldcol)):
                 # checks if up and down columns are empty
                 if(newrow >= oldrow):
@@ -189,9 +189,9 @@ class PieceSprite(pygame.sprite.Sprite):
             if(newrow == oldrow-2 and newcol == oldcol-1):
                 return self.checkAndRemove(newrow, newcol, color)
         
-        # --Black and White Bishop--
-        if(piece == Piece.BISHOP):
-            if((newrow != oldrow and newcol != oldcol)):
+        # --Black and White Bishop and Queen--
+        if(piece == Piece.BISHOP or piece == Piece.QUEEN):
+            if(int(math.fabs(newrow - oldrow)) == int(math.fabs(newcol - oldcol))):
                 #[-, +]
                 if(newrow < oldrow and newcol > oldcol): 
                     for i in range(1, oldrow-newrow):
@@ -223,73 +223,7 @@ class PieceSprite(pygame.sprite.Sprite):
                             return False
                 
                     return self.checkAndRemove(newrow, newcol, color)
-
-
-            pass 
         
-        # --Black and White Queen--
-        if(piece == Piece.QUEEN):
-            # [-/+, no change], rook functionality
-            if(newrow != oldrow and newcol == oldcol):
-                if(newrow >= oldrow):
-                    for i in range(oldrow+1, newrow):
-                        if (boardSquares[i][newcol].piece != Piece.EMPTY):
-                            return False
-                elif (newrow < oldrow):
-                    for i in range(newrow+1, oldrow):
-                        print(i, newcol)
-                        if (boardSquares[i][newcol].piece != Piece.EMPTY):
-                            return False
-                
-                return self.checkAndRemove(newrow, newcol, color)
-
-            # [no change, +/-], rook functionality
-            if(newrow == oldrow and newcol != oldcol):
-                if(newcol >= oldcol):
-                    for i in range(oldcol+1, newcol):
-                        if (boardSquares[newrow][i].piece != Piece.EMPTY):
-                            return False
-                elif (newcol < oldcol):
-                    for i in range(newcol+1, oldcol):
-                        if (boardSquares[newrow][i].piece != Piece.EMPTY):
-                            return False
-                
-                return self.checkAndRemove(newrow, newcol, color)
-
-            # [-,+], [+,+], [+,-],[-,-], bishop functionality
-            if((newrow != oldrow and newcol != oldcol)):
-                #[-, +]
-                if(newrow < oldrow and newcol > oldcol): 
-                    for i in range(1, oldrow-newrow):
-                        if(boardSquares[oldrow-i][oldcol+i].piece != Piece.EMPTY):
-                            return False
-                
-                    return self.checkAndRemove(newrow, newcol, color)
-                
-                #[+, +]
-                elif (newrow > oldrow and newcol > oldcol): 
-                    for i in range(1, newrow-oldrow):
-                        if(boardSquares[oldrow+i][oldcol+i].piece != Piece.EMPTY):
-                            return False
-                
-                    return self.checkAndRemove(newrow, newcol, color)
-                
-                #[+, -]
-                elif (newrow > oldrow and newcol < oldcol): 
-                    for i in range(1, newrow-oldrow):
-                        if(boardSquares[oldrow+i][oldcol-i].piece != Piece.EMPTY):
-                            return False
-                
-                    return self.checkAndRemove(newrow, newcol, color)
-                
-                #[-, -]
-                elif (newrow < oldrow and newcol < oldcol):
-                    for i in range(1, oldrow-newrow):
-                        if(boardSquares[oldrow-i][oldcol-i].piece != Piece.EMPTY):
-                            return False
-                
-                    return self.checkAndRemove(newrow, newcol, color)
-
         # --Black and White King--
         if(piece == Piece.KING):
             if(newrow == oldrow and (newcol == oldcol-1 or newcol == oldcol+1)):
@@ -397,6 +331,145 @@ def drawBoard():
         else:
             white = True
 
+# returns king position of certain color
+def findKing(color):
+    for i in range(ROWS):
+        for j in range(COLS):
+            if(boardSquares[i][j].piece == Piece.KING and boardSquares[i][j].pieceColor == color):
+                return (i, j)
+
+# makes sure iteration is within bounds of board
+def inBoardBounds(i,j):
+    return (0 <= i < 8) and (0 <= j < 8)
+
+# returns 0 for no check, 1 for black in check, 2 for white in check
+def inCheck():
+    rowK, colK = findKing("black")
+    for i in range(ROWS):
+        for j in range(COLS):
+            if (boardSquares[i][j].pieceColor == "white"):
+                
+                # if the king is diagonally from a pawn, king in check
+                if(boardSquares[i][j].piece == Piece.PAWN and inBoardBounds(i,j)):
+                    if((i-1 == rowK and j-1 == colK) or (i-1 == rowK and j+1 == colK)):
+                        return 1
+
+                # Queen shares up and down functionality with Rook
+                if(boardSquares[i][j].piece == Piece.ROOK or boardSquares[i][j].piece == Piece.QUEEN):
+                    #[-, x], up
+                    king = False
+                    for k in range(rowK, i):
+                        if (boardSquares[k][j].piece != Piece.EMPTY and boardSquares[k][j].piece != Piece.KING):
+                            king = False
+                            break
+                        if (boardSquares[k][j].piece == Piece.KING and boardSquares[k][j].pieceColor == "black"):
+                            king = True
+
+                    if(king):
+                        return 1
+
+                    #[+, x], down
+                    king = False
+                    for k in range(i+1, rowK+1):
+                        if (boardSquares[k][j].piece != Piece.EMPTY and boardSquares[k][j].piece != Piece.KING):
+                            king = False
+                            break
+                        if (boardSquares[k][j].piece == Piece.KING and boardSquares[k][j].pieceColor == "black"):
+                            king = True
+
+                    if(king):
+                        return 1
+
+                    #[x, -], left
+                    king = False
+                    for k in range(colK, j):
+                        if (boardSquares[i][k].piece != Piece.EMPTY and boardSquares[i][k].piece != Piece.KING):
+                            king = False
+                            break
+                        if (boardSquares[i][k].piece == Piece.KING and boardSquares[i][k].pieceColor == "black"):
+                            king = True
+
+                    if(king):
+                        return 1
+
+                    #[x, +], right   
+                    king = False
+                    for k in range(j+1, colK+1):
+                        if (boardSquares[i][k].piece != Piece.EMPTY and boardSquares[i][k].piece != Piece.KING):
+                            king = False
+                            break
+                        if (boardSquares[i][k].piece == Piece.KING and boardSquares[i][k].pieceColor == "black"):
+                            king = True
+
+                    if(king):
+                        return 1
+
+                # Bishop and Queen share diagonal functionality
+                if(boardSquares[i][j].piece == Piece.BISHOP or boardSquares[i][j].piece == Piece.QUEEN):
+                    #[-, +], up right
+                    king = False
+                    for k in range(1, i-rowK+1):
+                        if (inBoardBounds(i-k, j+k) and boardSquares[i-k][j+k].piece != Piece.EMPTY and boardSquares[i-k][j+k].piece != Piece.KING):
+                            #print("blocking king", rowK, colK, "[",i, j,"] ", k, i-k, j+k)
+                            king = False
+                            break
+                        if (inBoardBounds(i-k, j+k) and boardSquares[i-k][j+k].piece == Piece.KING and boardSquares[i-k][j+k].pieceColor == "black"):
+                            #print("king location", i-k, j+k)
+                            king = True
+
+                    #print(king)
+                    if(king):
+                        return 1
+
+                    #[+, +], down right
+                    king = False
+                    for k in range(1, rowK-i+1):
+                        if (inBoardBounds(i+k, j+k) and boardSquares[i+k][j+k].piece != Piece.EMPTY and boardSquares[i+k][j+k].piece != Piece.KING):
+                            king = False
+                            break
+                        if (inBoardBounds(i+k, j+k) and boardSquares[i+k][j+k].piece == Piece.KING and boardSquares[i+k][j+k].pieceColor == "black"):
+                            king = True
+
+                    #print(king)
+                    if(king):
+                        return 1
+
+                    #[+, -], down left
+                    king = False
+                    for k in range(1, rowK-i+1):
+                        if (inBoardBounds(i+k, j-k) and boardSquares[i+k][j-k].piece != Piece.EMPTY and boardSquares[i+k][j-k].piece != Piece.KING):
+                            king = False
+                            break
+                        if (inBoardBounds(i+k, j-k) and boardSquares[i+k][j-k].piece == Piece.KING and boardSquares[i+k][j-k].pieceColor == "black"):
+                            king = True
+
+                    if(king):
+                        return 1
+
+                    #[-, -], up left   
+                    king = False
+                    for k in range(1, i-rowK+1):
+                        if (inBoardBounds(i-k, j-k) and boardSquares[i-k][j-k].piece != Piece.EMPTY and boardSquares[i-k][j-k].piece != Piece.KING):
+                            king = False
+                            break
+                        if (inBoardBounds(i-k, j-k) and boardSquares[i-k][j-k].piece == Piece.KING and boardSquares[i-k][j-k].pieceColor == "black"):
+                            king = True
+
+                    if(king):
+                        return 1
+                
+                if(boardSquares[i][j].piece == Piece.KNIGHT):
+                    pass
+                if(boardSquares[i][j].piece == Piece.KING):
+                    pass
+
+
+
+    row, col = findKing("white")
+    
+    
+    return False
+
 # Groups sprite together to be displayed
 pieces = pygame.sprite.Group()
 
@@ -439,8 +512,16 @@ while running:
             else:
                 print("out of bounds")
 
+            # checks if the king is in check after movements
+            if(inCheck() == 1):
+                print("black king in check")
+            elif (inCheck() == 2):
+                print("white king in check")
+
+            #reset selected piece
             pieceSelected = False
             selectedPos = (-1,-1)
+
 
     # Fill the background with white
     screen.fill(BACKGROUND_COLOR)
@@ -453,6 +534,10 @@ while running:
     # draws board
     drawBoard()
 
+    # if piece is selected, highlights it with a color
+    if(pieceSelected):
+        pygame.draw.rect(screen, (0,68,116), pygame.Rect(boardSquares[selectedPos[0]][selectedPos[1]].x, boardSquares[selectedPos[0]][selectedPos[1]].y, SQUARE_SIZE, SQUARE_SIZE) )
+               
     # draws pieces to screen
     pieces.draw(screen)
 
