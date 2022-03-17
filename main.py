@@ -20,6 +20,7 @@ BACKGROUND_COLOR = (251,245,222)
 screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
 pygame.display.set_caption('Chess AI')
 boardSquares = [[0 for i in range(COLS)] for j in range(ROWS)]
+previousMove = [0 for i in range(2)]
 
 #Sprites
 PAWN_W_SPRITE = pygame.image.load(os.path.join("Sprites", "pawn_w.png")).convert_alpha()
@@ -237,10 +238,17 @@ class PieceSprite(pygame.sprite.Sprite):
         return False
 
     def move(self, piece, color, oldrow, oldcol, newrow, newcol):
+        # if clicked same square
+        if(oldrow == newrow and oldcol == newcol):
+            print("Same square, not a move.")
+            return False
+
         if (self.validMove(piece, color, oldrow, oldcol, newrow, newcol)):
             
             #boardSquares[newrow][newcol].copy(boardSquares[oldrow][oldcol])
-            
+            previousMove[0] = boardSquares[oldrow][oldcol]
+            previousMove[1] = boardSquares[newrow][newcol]
+
             self.rect.x = (newcol * SQUARE_SIZE) + BOARD_START_X +1
             self.rect.y = (newrow * SQUARE_SIZE) + BOARD_START_X +2
             boardSquares[newrow][newcol].x = self.rect.x
@@ -520,9 +528,11 @@ selectedPos = (-1,-1)
 whiteCheck = False
 blackCheck = False
 
+playerTurn = "white"
+
 # resets all variables and sprites, new game
 def newGame():
-    global pieces, pieceSelected, selectedPos, whiteCheck, blackCheck
+    global pieces, pieceSelected, selectedPos, whiteCheck, blackCheck, playerTurn
     
     for p in pieces:
         p.kill()
@@ -533,9 +543,38 @@ def newGame():
     selectedPos = (-1,-1)
 
     whiteCheck = False
-    blackCheck = False  
+    blackCheck = False
+
+    playerTurn = "white"
+
     print("\n======New Game=====\n")
 
+# un-does last move
+def undoMove(oldrow, oldcol, newrow, newcol):
+    # removes sprite from new location
+    pieces.remove(boardSquares[newrow][newcol].sprite)
+
+    # restores previous data of squares
+    boardSquares[oldrow][oldcol] = previousMove[0]
+    boardSquares[newrow][newcol] = previousMove[1]
+    
+    # sprite adjustments messes with selection square, so have to readjust coords
+    boardSquares[newrow][newcol].x -= 1
+    boardSquares[newrow][newcol].y -= 2 
+    
+
+    # re-calculates location of old sprite
+    boardSquares[oldrow][oldcol].sprite.rect.x = (oldcol * SQUARE_SIZE) + BOARD_START_X+1
+    boardSquares[oldrow][oldcol].sprite.rect.y = (oldrow * SQUARE_SIZE) + BOARD_START_X+2
+    
+    # re-adds old sprite
+    pieces.add(boardSquares[oldrow][oldcol].sprite)
+    
+    # if previous move had removed a piece from the new location, restores that sprite as well
+    if(previousMove[1].sprite != None):
+        boardSquares[newrow][newcol].sprite.rect.x = (newcol * SQUARE_SIZE) + BOARD_START_X+1
+        boardSquares[newrow][newcol].sprite.rect.y = (newrow * SQUARE_SIZE) + BOARD_START_X+2
+        pieces.add(boardSquares[newrow][newcol].sprite)
 
 running = True
 while running:
@@ -581,19 +620,68 @@ while running:
                 blackCheck = False
                 whiteCheck = False
 
+            # makes sure coords are in bounds and moves piece
             if(BOARD_START_X <= x <= BOARD_END_X and BOARD_START_X <= y <=BOARD_END_X):
                 print("[",oldrow, ", ", oldcol, "]->[", newrow, ", ", newcol, "]", boardSquares[oldrow][oldcol].piece)
-                boardSquares[oldrow][oldcol].sprite.move(boardSquares[oldrow][oldcol].piece, boardSquares[oldrow][oldcol].pieceColor, oldrow, oldcol, newrow, newcol)
+
+                if(newrow == oldrow and newcol == oldcol):
+                    print("Same square, please select a valid move.")
+                    pieceSelected = False
+                    selectedPos = (-1,-1) 
+                    break
+
+                # makes sure the correct color goes 
+                if(boardSquares[oldrow][oldcol].pieceColor == playerTurn):
+                    validMove = boardSquares[oldrow][oldcol].sprite.move(boardSquares[oldrow][oldcol].piece, boardSquares[oldrow][oldcol].pieceColor, oldrow, oldcol, newrow, newcol)
+
+                    # if valid, switches turn
+                    if(validMove):
+                        playerTurn = "black" if playerTurn == "white" else "white"
+                    
+                    # if black is still in check after it moves, invalid
+                    if(inCheck() == 1 and blackCheck):
+                        print("Invalid move, black king still in check")
+                        undoMove(oldrow, oldcol, newrow, newcol)
+
+                        playerTurn = "black"
+
+                    # if it switched over to white and black is in check, black put itself into check
+                    elif(inCheck() == 1 and playerTurn == "white"):
+                        print("Invalid move, black can't put itself into check")
+                        undoMove(oldrow, oldcol, newrow, newcol)
+
+                        playerTurn = "black"
+
+                    # if white is still in check after it moves, invalid
+                    elif(inCheck() == 2 and whiteCheck):
+                        print("Invalid move, white king still in check")
+                        undoMove(oldrow, oldcol, newrow, newcol)
+
+                        playerTurn = "white"
+
+                    # if it switched over to black and white is in check, white put itself into check
+                    elif(inCheck() == 2 and playerTurn == "black"):
+                        print("Invalid move, white can't put itself into check")
+                        undoMove(oldrow, oldcol, newrow, newcol)
+
+                        playerTurn = "white"
+                        
+                else:
+                    print("It is", playerTurn, "turn, select a", playerTurn, "piece.")
             else:
                 print("out of bounds")
 
             # checks if the king is in check after move
-            if(inCheck() == 1):
+            if(inCheck() == 1 and blackCheck):
+                print("Invalid move, black king still in check")
+            elif(inCheck() == 1 and not blackCheck):
                 print("black king in check")
                 blackCheck = True
-            elif (inCheck() == 2):
+            elif (inCheck() == 2 and whiteCheck):
+                print("Invalid move, white king still in check")
+            elif(inCheck() == 2 and not whiteCheck):
                 print("white king in check")
-                whiteCheck = True
+                blackCheck = True
             else:
                 print("kings are safe after")
                 blackCheck = False
