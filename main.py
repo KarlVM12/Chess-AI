@@ -62,6 +62,7 @@ class Square:
 
         self.pieceColor = pieceColor
         self.sprite = sprite
+        self.attackingSquares = []
 
     def copy(self, square):
         self.x = square.x
@@ -261,12 +262,14 @@ class PieceSprite(pygame.sprite.Sprite):
             if(piece == Piece.PAWN):
                 game.boardSquares[newrow][newcol].firstMove = False
 
-            print("Valid Move, New Square:", game.boardSquares[newrow][newcol])
+            #print("Valid Move, New Square:", game.boardSquares[newrow][newcol])
             
             return True
             #self.rect = self.image.get_rect(topleft=(newrow * SQUARE_SIZE, newcol * SQUARE_SIZE))
         else:
-            print("Invalid Move")
+            #print("Invalid Move")
+            game.previousMove[0] = game.boardSquares[oldrow][oldcol]
+            game.previousMove[1] = game.boardSquares[newrow][newcol]
             return False
 
     def __str__(self) -> str:
@@ -296,6 +299,13 @@ class game:
 
         self.playerTurn = "white"
 
+        self.BLACK_WIN = -1
+        self.STALEMATE = 0
+        self.WHITE_WIN = 1
+
+        self.whiteScore = 0
+        self.blackScore = 0
+        
 
     def initializeBoard(self):
         for y in range(BOARD_START_X, BOARD_END_X, SQUARE_SIZE):
@@ -369,19 +379,26 @@ class game:
                 white = True
 
     # returns king position of certain color
-    def findKing(self, color):
+    def findPiece(self, color, piece):
         for i in range(ROWS):
             for j in range(COLS):
-                if(self.boardSquares[i][j].piece == Piece.KING and self.boardSquares[i][j].pieceColor == color):
+                if(self.boardSquares[i][j].piece == piece and self.boardSquares[i][j].pieceColor == color):
                     return (i, j)
+
+        return (-1, -1)
 
     # makes sure iteration is within bounds of board
     def inBoardBounds(self, i,j):
         return (0 <= i < ROWS) and (0 <= j < COLS)
 
-    # checks if that color is in check, subfunction for inCheck()
-    def inCheckColor(self, color):
-        rowK, colK = self.findKing(color)
+    # checks if that color of a certain piece is under attack (or check), subfunction for inCheck()
+    def inAttackColor(self, color, piece, rowIn = -1, colIn = -1):
+        rowK, colK = self.findPiece(color, piece)
+        
+        if(self.inBoardBounds(rowIn, colIn)):
+            rowK = rowIn
+            colK = colIn
+        
         for i in range(ROWS):
             for j in range(COLS):
                 if (self.boardSquares[i][j].pieceColor != color):
@@ -390,176 +407,158 @@ class game:
                     if(self.boardSquares[i][j].piece == Piece.PAWN and self.inBoardBounds(i,j)):
                         if (color == "white"):
                             if((i-1 == rowK and j-1 == colK) or (i-1 == rowK and j+1 == colK)):
-                                return 1
+                                return True, i, j
                             
                         if (color == "black"):
                             if((i+1 == rowK and j+1 == colK) or (i+1 == rowK and j-1 == colK)):
-                                return 2
+                                return True, i, j
 
                     # Queen shares up and down functionality with Rook
                     if(self.boardSquares[i][j].piece == Piece.ROOK or self.boardSquares[i][j].piece == Piece.QUEEN):
                         #[-, x], up
                         king = False
                         for k in range(rowK, i):
-                            if (self.boardSquares[k][j].piece != Piece.EMPTY and self.boardSquares[k][j].piece != Piece.KING):
+                            if (self.boardSquares[k][j].piece != Piece.EMPTY and self.boardSquares[k][j].piece != piece):
                                 king = False
                                 break
-                            if (self.boardSquares[k][j].piece == Piece.KING and self.boardSquares[k][j].pieceColor == color):
+                            if (self.boardSquares[k][j].piece == piece and self.boardSquares[k][j].pieceColor == color):
                                 king = True
 
                         if(king):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
 
                         #[+, x], down
                         king = False
                         for k in range(i+1, rowK+1):
-                            if (self.boardSquares[k][j].piece != Piece.EMPTY and self.boardSquares[k][j].piece != Piece.KING):
+                            if (self.boardSquares[k][j].piece != Piece.EMPTY and self.boardSquares[k][j].piece != piece):
                                 king = False
                                 break
-                            if (self.boardSquares[k][j].piece == Piece.KING and self.boardSquares[k][j].pieceColor == color):
+                            if (self.boardSquares[k][j].piece == piece and self.boardSquares[k][j].pieceColor == color):
                                 king = True
 
                         if(king):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
 
                         #[x, -], left
                         king = False
                         for k in range(colK, j):
-                            if (self.boardSquares[i][k].piece != Piece.EMPTY and self.boardSquares[i][k].piece != Piece.KING):
+                            if (self.boardSquares[i][k].piece != Piece.EMPTY and self.boardSquares[i][k].piece != piece):
                                 king = False
                                 break
-                            if (self.boardSquares[i][k].piece == Piece.KING and self.boardSquares[i][k].pieceColor == color):
+                            if (self.boardSquares[i][k].piece == piece and self.boardSquares[i][k].pieceColor == color):
                                 king = True
 
                         if(king):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
 
                         #[x, +], right   
                         king = False
                         for k in range(j+1, colK+1):
-                            if (self.boardSquares[i][k].piece != Piece.EMPTY and self.boardSquares[i][k].piece != Piece.KING):
+                            if (self.boardSquares[i][k].piece != Piece.EMPTY and self.boardSquares[i][k].piece != piece):
                                 king = False
                                 break
-                            if (self.boardSquares[i][k].piece == Piece.KING and self.boardSquares[i][k].pieceColor == color):
+                            if (self.boardSquares[i][k].piece == piece and self.boardSquares[i][k].pieceColor == color):
                                 king = True
 
                         if(king):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
 
                     # Bishop and Queen share diagonal functionality
                     if(self.boardSquares[i][j].piece == Piece.BISHOP or self.boardSquares[i][j].piece == Piece.QUEEN):
                         #[-, +], up right
                         king = False
                         for k in range(1, i-rowK+1):
-                            if (self.inBoardBounds(i-k, j+k) and self.boardSquares[i-k][j+k].piece != Piece.EMPTY and self.boardSquares[i-k][j+k].piece != Piece.KING):
+                            if (self.inBoardBounds(i-k, j+k) and self.boardSquares[i-k][j+k].piece != Piece.EMPTY and self.boardSquares[i-k][j+k].piece != piece):
                                 #print("blocking king", rowK, colK, "[",i, j,"] ", k, i-k, j+k)
                                 king = False
                                 break
-                            if (self.inBoardBounds(i-k, j+k) and self.boardSquares[i-k][j+k].piece == Piece.KING and self.boardSquares[i-k][j+k].pieceColor == color):
+                            if (self.inBoardBounds(i-k, j+k) and self.boardSquares[i-k][j+k].piece == piece and self.boardSquares[i-k][j+k].pieceColor == color):
                                 #print("king location", i-k, j+k)
                                 king = True
 
                         #print(king)
                         if(king):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
 
                         #[+, +], down right
                         king = False
                         for k in range(1, rowK-i+1):
-                            if (self.inBoardBounds(i+k, j+k) and self.boardSquares[i+k][j+k].piece != Piece.EMPTY and self.boardSquares[i+k][j+k].piece != Piece.KING):
+                            if (self.inBoardBounds(i+k, j+k) and self.boardSquares[i+k][j+k].piece != Piece.EMPTY and self.boardSquares[i+k][j+k].piece != piece):
                                 king = False
                                 break
-                            if (self.inBoardBounds(i+k, j+k) and self.boardSquares[i+k][j+k].piece == Piece.KING and self.boardSquares[i+k][j+k].pieceColor == color):
+                            if (self.inBoardBounds(i+k, j+k) and self.boardSquares[i+k][j+k].piece == piece and self.boardSquares[i+k][j+k].pieceColor == color):
                                 king = True
 
                         #print(king)
                         if(king):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
 
                         #[+, -], down left
                         king = False
                         for k in range(1, rowK-i+1):
-                            if (self.inBoardBounds(i+k, j-k) and self.boardSquares[i+k][j-k].piece != Piece.EMPTY and self.boardSquares[i+k][j-k].piece != Piece.KING):
+                            if (self.inBoardBounds(i+k, j-k) and self.boardSquares[i+k][j-k].piece != Piece.EMPTY and self.boardSquares[i+k][j-k].piece != piece):
                                 king = False
                                 break
-                            if (self.inBoardBounds(i+k, j-k) and self.boardSquares[i+k][j-k].piece == Piece.KING and self.boardSquares[i+k][j-k].pieceColor == color):
+                            if (self.inBoardBounds(i+k, j-k) and self.boardSquares[i+k][j-k].piece == piece and self.boardSquares[i+k][j-k].pieceColor == color):
                                 king = True
 
                         if(king):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
 
                         #[-, -], up left   
                         king = False
                         for k in range(1, i-rowK+1):
-                            if (self.inBoardBounds(i-k, j-k) and self.boardSquares[i-k][j-k].piece != Piece.EMPTY and self.boardSquares[i-k][j-k].piece != Piece.KING):
+                            if (self.inBoardBounds(i-k, j-k) and self.boardSquares[i-k][j-k].piece != Piece.EMPTY and self.boardSquares[i-k][j-k].piece != piece):
                                 king = False
                                 break
-                            if (self.inBoardBounds(i-k, j-k) and self.boardSquares[i-k][j-k].piece == Piece.KING and self.boardSquares[i-k][j-k].pieceColor == color):
+                            if (self.inBoardBounds(i-k, j-k) and self.boardSquares[i-k][j-k].piece == piece and self.boardSquares[i-k][j-k].pieceColor == color):
                                 king = True
 
                         if(king):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                     
                     # if another knight move puts the King in check, king in check
                     if(self.boardSquares[i][j].piece == Piece.KNIGHT):
                         if(rowK == i-2 and colK == j+1):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                         if(rowK == i-1 and colK == j+2):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                         if(rowK == i+1 and colK == j+2):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                         if(rowK == i+2 and colK == j+1):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                         if(rowK == i+2 and colK == j-1):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                         if(rowK == i+1 and colK == j-2):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                         if(rowK == i-1 and colK == j-2):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                         if(rowK == i-2 and colK == j-1):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
 
                     if(self.boardSquares[i][j].piece == Piece.KING):
                         if(rowK == i and (colK == j-1 or colK == j+1)):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                         elif((rowK == i-1 or rowK == i+1) and colK == j):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                         elif((rowK == i-1 or rowK == i+1) and (colK == j-1 or colK == j+1)):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
                         elif((rowK == i-1 and colK == j-1) or (rowK == i+1 and colK == j+1)):
-                            return (1 if color == "black" else 2)
+                            return True, i, j
 
-        return 0
+        return False, -1, -1
 
     # returns 0 for no check, 1 for black in check, 2 for white in check
     def inCheck(self):
         
-        if(self.inCheckColor("black") == 1):
+        if(self.inAttackColor("black", Piece.KING)[0]):
             return 1
         
-        if(self.inCheckColor("white") == 2):
+        if(self.inAttackColor("white", Piece.KING)[0]):
             return 2
 
         return 0
 
-    """ # Groups sprite together to be displayed
-    pieces = pygame.sprite.Group()
-
-    # Initializes board with pieces
-    initializeBoard(pieces)
-    pieceSelected = False
-    selectedPos = (-1,-1)
-
-    whiteCheck = False
-    whiteCheckCounter = 0
-    whiteCheckMate = False
-
-    blackCheck = False
-    blackCheckCounter = 0
-    blackCheckMate = False
-
-    playerTurn = "white"
-    """
     # resets all variables and sprites, new game
     def newGame(self):
         for p in self.pieces:
@@ -609,12 +608,278 @@ class game:
             self.boardSquares[newrow][newcol].sprite.rect.y = (newrow * SQUARE_SIZE) + BOARD_START_X+2
             self.pieces.add(self.boardSquares[newrow][newcol].sprite)
 
+    def checkStalemate(self, color):
+        checkCounter = 0
+        rowK, colK = self.findPiece(color, Piece.KING)
+
+        # [+, x]
+        if self.inBoardBounds(rowK + 1, colK) and (self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK + 1, colK)):
+            if(self.inCheck()):
+                checkCounter += 1
+
+            self.undoMove( rowK, colK, rowK + 1, colK)
+
+        # [-, x]
+        if (self.inBoardBounds(rowK -1, colK) and self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK - 1, colK)):
+            if(self.inCheck()):
+                checkCounter += 1
+                
+            self.undoMove( rowK, colK, rowK - 1, colK)
+
+        # [x, +]
+        if (self.inBoardBounds(rowK, colK+1) and self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK, colK + 1)):
+            if(self.inCheck()):
+                checkCounter += 1
+                
+            self.undoMove( rowK, colK, rowK, colK + 1)
+
+        # [x, -]
+        if (self.inBoardBounds(rowK, colK-1) and self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK, colK - 1)):
+            if(self.inCheck()):
+                checkCounter += 1
+                
+            self.undoMove( rowK, colK, rowK, colK - 1)
+
+        # [-, +]
+        if (self.inBoardBounds(rowK-1, colK+1) and self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK - 1, colK + 1)):
+            if(self.inCheck()):
+                checkCounter += 1
+                
+            self.undoMove( rowK, colK, rowK - 1, colK + 1)
+
+        # [+, +]
+        if (self.inBoardBounds(rowK+1, colK+1) and self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK + 1, colK + 1)):
+            if(self.inCheck()):
+                checkCounter += 1
+                
+            self.undoMove( rowK, colK, rowK + 1, colK + 1)
+
+        # [+, -]
+        if (self.inBoardBounds(rowK+1, colK-1) and self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK + 1, colK - 1)):
+            if(self.inCheck()):
+                checkCounter += 1
+                
+            self.undoMove( rowK, colK, rowK + 1, colK - 1)
+
+        # [-, -]
+        if (self.inBoardBounds(rowK-1, colK-1) and self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK - 1, colK - 1)):
+            if(self.inCheck()):
+                checkCounter += 1
+                
+            self.undoMove( rowK, colK, rowK - 1, colK - 1)
+
+        if(checkCounter == 8):
+            return True
+
+        return False
+
+    def invalidKingMoves(self, color):
+        invalidCounter = 0
+        rowK, colK = self.findPiece(color, Piece.KING)
+
+        # [+, x]
+        if (self.inBoardBounds(rowK + 1, colK)):
+            valid = self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK + 1, colK)
+            if(self.inCheck() or not valid):
+                invalidCounter += 1
+
+            if(valid):
+                self.undoMove( rowK, colK, rowK + 1, colK)
+        elif (not self.inBoardBounds(rowK + 1, colK)):
+            invalidCounter += 1
+
+        # [-, x]
+        if (self.inBoardBounds(rowK-1, colK)):
+            valid = self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK - 1, colK)
+            if(self.inCheck() or not valid):
+                invalidCounter += 1
+
+            if(valid):
+                self.undoMove( rowK, colK, rowK - 1, colK)
+        elif (not self.inBoardBounds(rowK - 1, colK)):
+            invalidCounter += 1
+
+        # [x, +]
+        if (self.inBoardBounds(rowK, colK+1)):
+            valid = self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK, colK + 1)
+            if(self.inCheck() or not valid):
+                invalidCounter += 1
+                
+            if(valid):    
+                self.undoMove( rowK, colK, rowK, colK + 1)
+        elif (not self.inBoardBounds(rowK, colK + 1)):
+            invalidCounter += 1
+
+        # [x, -]
+        if (self.inBoardBounds(rowK, colK-1)):
+            valid = self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK, colK - 1)
+            if(self.inCheck() or not valid):
+                invalidCounter += 1
+                
+            if(valid):   
+                self.undoMove( rowK, colK, rowK, colK - 1)
+        elif (not self.inBoardBounds(rowK, colK - 1)):
+            invalidCounter += 1
+
+        # [-, +]
+        if (self.inBoardBounds(rowK-1, colK+1)):
+            valid = self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK - 1, colK + 1)
+            if(self.inCheck() or not valid):
+                invalidCounter += 1
+            
+            if(valid):
+                self.undoMove( rowK, colK, rowK - 1, colK + 1)
+        elif (not self.inBoardBounds(rowK - 1, colK + 1)):
+            invalidCounter += 1
+
+        # [+, +]
+        if (self.inBoardBounds(rowK+1, colK+1)):
+            valid = self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK + 1, colK + 1)
+            if(self.inCheck() or not valid):
+                invalidCounter += 1
+            
+            if(valid):    
+                self.undoMove( rowK, colK, rowK + 1, colK + 1)
+        elif (not self.inBoardBounds(rowK + 1, colK + 1)):
+            invalidCounter += 1
+
+        # [+, -]
+        if (self.inBoardBounds(rowK+1, colK-1)):
+            valid = self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK + 1, colK - 1)
+            if(self.inCheck() or not valid):
+                invalidCounter += 1
+            
+            if(valid):    
+                self.undoMove( rowK, colK, rowK + 1, colK - 1)
+        elif (not self.inBoardBounds(rowK + 1, colK - 1)):
+            invalidCounter += 1
+
+        # [-, -]
+        if (self.inBoardBounds(rowK-1, colK-1)):
+            valid = self.boardSquares[rowK][colK].sprite.move(self, Piece.KING, color, rowK, colK, rowK - 1, colK - 1)
+            if(self.inCheck() or not valid):
+                invalidCounter += 1
+                
+            if(valid):
+                self.undoMove( rowK, colK, rowK - 1, colK - 1)
+        elif (not self.inBoardBounds(rowK - 1, colK - 1)):
+            invalidCounter += 1
+
+        if(invalidCounter == 8):
+            return True
+
+        return False
+
+    def checkCheckmate(self, color):
+
+        # if the king can't:
+        #   1) Move the king so that it's no longer under attack.
+        #   2) Capture the attacking piece.
+        #   3) Block the attack by interposing a piece between the king and the attacker.
+
+        checkmateCounter = 0
+
+        # 1) Move the king so that it's no longer under attack.
+        if (self.invalidKingMoves(color)):
+            checkmateCounter += 1
+            print("can't move king")
+        else:
+            return False
+
+        # 2) Capture the attacking piece.
+        
+        # gets piece that is attacking king
+        attacker = self.inAttackColor(color, Piece.KING)
+        rowA, colA = attacker[1], attacker[2]
+
+        # checks if that piece has the possibility of being captured
+        attackingAttacker = self.inAttackColor(self.boardSquares[rowA][colA].pieceColor, self.boardSquares[rowA][colA].piece, rowA, colA)
+        attackingAttacked, rowAA, colAA = attackingAttacker
+
+        # if the attacker is not able to be captured or the only thing able to capture it is the King in check, which wouldn't be possible becuase we determined before there were no valid moves
+        if(not attackingAttacked or (self.inBoardBounds(rowAA, colAA) and self.boardSquares[rowAA][colAA].pieceColor == color and self.boardSquares[rowAA][colAA].piece == Piece.KING)):
+            checkmateCounter += 1
+            print("attacker has none of its own attackers")
+        else:
+            return False
+
+
+        # 3) Block the attack by interposing a piece between the king and the attacker.
+        
+        if (self.boardSquares[rowA][colA].piece == Piece.PAWN or self.boardSquares[rowA][colA].piece == Piece.KNIGHT):
+            checkmateCounter += 1
+        elif((self.inBoardBounds(rowA, colA-1) and self.boardSquares[rowA][colA-1].piece == Piece.KING and self.boardSquares[rowA][colA-1].pieceColor == color) or (self.inBoardBounds(rowA, colA+1) and self.boardSquares[rowA][colA+1].piece == Piece.KING and self.boardSquares[rowA][colA+1].pieceColor == color)):
+            checkmateCounter += 1  
+        elif((self.inBoardBounds(rowA-1, colA) and self.boardSquares[rowA-1][colA].piece == Piece.KING and self.boardSquares[rowA-1][colA].pieceColor == color) or (self.inBoardBounds(rowA+1, colA) and self.boardSquares[rowA+1][colA].piece == Piece.KING and self.boardSquares[rowA+1][colA].pieceColor == color)):
+            checkmateCounter += 1 
+        elif((self.inBoardBounds(rowA-1, colA-1) and self.boardSquares[rowA-1][colA-1].piece == Piece.KING and self.boardSquares[rowA-1][colA-1].pieceColor == color) or (self.inBoardBounds(rowA+1, colA+1) and self.boardSquares[rowA+1][colA+1].piece == Piece.KING and self.boardSquares[rowA+1][colA+1].pieceColor == color)):
+            checkmateCounter += 1 
+        elif((self.inBoardBounds(rowA-1, colA+1) and self.boardSquares[rowA-1][colA+1].piece == Piece.KING and self.boardSquares[rowA-1][colA+1].pieceColor == color) or (self.inBoardBounds(rowA+1, colA-1) and self.boardSquares[rowA+1][colA-1].piece == Piece.KING and self.boardSquares[rowA+1][colA-1].pieceColor == color)):
+            checkmateCounter += 1              
+
+        # just have to check if anything can block the path of the attacker
+        
+
+        #print(checkmateCounter)
+
+        if(checkmateCounter >= 3):
+            return True    
+
+        return False
+
+    def win(self, color):
+
+        if(color == "white"):
+            self.whiteScore += 1
+        else:
+            self.blackScore += 1
+
+        print("\n=====Game Over=====")
+        print("White: ", self.whiteScore)
+        print("Black: ", self.blackScore)
+
+    def isTerminal(self):
+        
+        # Black Stalemate 
+        if(not self.blackCheck):
+            if(self.checkStalemate("black")):
+                print("Black king in Stalemate")
+                return True
+
+        # White Stalemate
+        if(not self.whiteCheck):
+            if(self.checkStalemate("white")):
+                print("White king in Stalemate")
+                return True
+       
+        
+        # Black Checkmate
+        if(self.blackCheck):
+            if(self.checkCheckmate("black")):
+                print("Black king in Checkmate, White wins.")
+                self.win("white")
+
+                return True
+                
+        """
+        # White Checkmate
+        if(self.whiteCheck):
+            if(self.checkCheckmate("white")):
+                print("White king in Checkmate, Black wins.")
+                self.win("black")
+
+                return True
+        """
+
+        return False
+        
 
 chess = game()
 chess.newGame()
 
+# game is running and it is not a terminal state
 running = True
-while running:
+while running and not chess.isTerminal():
     # "X"-ed window out
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -677,7 +942,10 @@ while running:
 
                     # if valid, switches turn
                     if(validMove):
+                        print("Valid Move, New Square:", chess.boardSquares[newrow][newcol])
                         chess.playerTurn = "black" if chess.playerTurn == "white" else "white"
+                    else:
+                        print("Invalid Move")
                     
                     # if black is still in check after it moves, invalid
                     if(chess.inCheck() == 1 and chess.blackCheck):
