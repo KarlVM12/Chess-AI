@@ -1,8 +1,10 @@
 import os.path
 import math
-from tabnanny import check
 import pygame
 import enum
+from Piece import Piece as Piece
+import alphaBetaPruning
+
 #import alphaBetaPruning as ab
 pygame.init()
 
@@ -39,15 +41,6 @@ QUEEN_B_SPRITE = pygame.image.load(os.path.join("Sprites", "queen_b.png")).conve
 KING_W_SPRITE = pygame.image.load(os.path.join("Sprites", "king_w.png")).convert_alpha()
 KING_B_SPRITE = pygame.image.load(os.path.join("Sprites", "king_b.png")).convert_alpha()
 
-
-class Piece(enum.Enum):
-    EMPTY = "EMPTY"
-    PAWN = "PAWN"
-    ROOK = "ROOK"
-    KNIGHT = "KNIGHT"
-    BISHOP = "BISHOP"
-    QUEEN = "QUEEN"
-    KING = "KING"
 
 
 class Square:
@@ -387,6 +380,18 @@ class game:
                     return (i, j)
 
         return (-1, -1)
+
+    # returns list of the possible moves of a piece
+    def piecePossibleMoves(self, color, piece, row, col):
+        possibleMoves = []
+        
+        for i in range(ROWS):
+            for j in range(COLS):
+                if(self.boardSquares[row][col].sprite.move(self, piece, color, row, col, i, j)):
+                    possibleMoves.append([i,j])
+                    self.undoMove(row, col, i, j)
+
+        return possibleMoves
 
     # makes sure iteration is within bounds of board
     def inBoardBounds(self, i,j):
@@ -789,16 +794,21 @@ class game:
         #   3) Block the attack by interposing a piece between the king and the attacker.
 
         checkmateCounter = 0
-
+        
+        #=======================================================#
         # 1) Move the king so that it's no longer under attack.
+        #=======================================================#
+
         if (self.invalidKingMoves(color)):
             checkmateCounter += 1
             print("can't move king")
         else:
             return False
 
+        #=================================#
         # 2) Capture the attacking piece.
-        
+        #=================================#
+
         # gets piece that is attacking king
         attacker = self.inAttackColor(color, Piece.KING)
         rowA, colA = attacker[1], attacker[2]
@@ -815,9 +825,12 @@ class game:
             return False
 
 
+        #==============================================================================#
         # 3) Block the attack by interposing a piece between the king and the attacker.
-        
+        #==============================================================================#
+
         # if attacker is within one square of king, easy to check that nothing can block it
+        # also, if pawn or knight, nothing can block their attacks since there is no empty space
         if (self.boardSquares[rowA][colA].piece == Piece.PAWN or self.boardSquares[rowA][colA].piece == Piece.KNIGHT):
             checkmateCounter += 1
         elif((self.inBoardBounds(rowA, colA-1) and self.boardSquares[rowA][colA-1].piece == Piece.KING and self.boardSquares[rowA][colA-1].pieceColor == color) or (self.inBoardBounds(rowA, colA+1) and self.boardSquares[rowA][colA+1].piece == Piece.KING and self.boardSquares[rowA][colA+1].pieceColor == color)):
@@ -830,15 +843,12 @@ class game:
             checkmateCounter += 1              
 
         # just have to check if anything can block the path of the attacker
-        # possible solution: check if any of the empty squares in the path of the attacker are under attack
-        
-        # Queen -> Bishop, Rook
-        # loop through path from attacker to king, stores the coords in an array
+        # loop through path from attacker to king, stores the coords in an array, check if they can be blocked
         rowK, colK = self.findPiece(color, Piece.KING)
         emptySpaces = []
         oppositeColor = "white" if (color == "black") else "white"
                 
-
+        # attacker is bishop/queen
         if(self.boardSquares[rowA][colA].piece == Piece.BISHOP or self.boardSquares[rowA][colA].piece == Piece.QUEEN):
             # [-, +] up right
             if(rowA > rowK and colA < colK):
@@ -875,6 +885,7 @@ class game:
             
             checkmateCounter += 1
         
+        # attacker is rook/queen
         emptySpaces = []
         if(self.boardSquares[rowA][colA].piece == Piece.ROOK or self.boardSquares[rowA][colA].piece == Piece.QUEEN):
             # [-, x] up
@@ -959,6 +970,23 @@ class game:
 
         return False
         
+    def utility(self, color):
+    
+        if(color == "black"):
+            if(self.checkCheckmate("white")):
+                return (1, None, None, None, None)
+            elif(self.checkCheckmate("black")):
+                return (-1, None, None, None, None)
+            else:
+                return (0, None, None, None, None)
+        else:
+            if(self.checkCheckmate("black")):
+                return (-1, None, None, None, None)
+            elif(self.checkCheckmate("white")):
+                return (1, None, None, None, None)
+            else:
+                return (0, None, None, None, None)
+
 
 chess = game()
 chess.newGame()
@@ -986,6 +1014,7 @@ while running and not chess.isTerminal():
 
                 if(chess.boardSquares[chess.selectedPos[0]][chess.selectedPos[1]].piece != Piece.EMPTY):
                     chess.pieceSelected = True
+                    #print(chess.piecePossibleMoves(chess.boardSquares[chess.selectedPos[0]][chess.selectedPos[1]].pieceColor, chess.boardSquares[chess.selectedPos[0]][chess.selectedPos[1]].piece, chess.selectedPos[0], chess.selectedPos[1]))
                 else:
                     chess.pieceSelected = False
                     chess.selectedPos = (-1,-1) 
