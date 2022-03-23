@@ -42,7 +42,7 @@ def gameToState(game):
                 boardString += 'k'
             elif(state[i][j][0] == Piece.EMPTY):
                 #print(boardString)
-                if(boardString[-1].isnumeric() and len(boardString)>1):
+                if(len(boardString) > 0 and boardString[-1].isnumeric()):
                     num = int(boardString[-1])
                     num += 1
                     boardString = boardString[:-1] + str(num)
